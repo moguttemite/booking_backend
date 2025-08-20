@@ -1,0 +1,57 @@
+name: booking-system-db
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: booking_postgresql
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: lecture_admin
+      POSTGRES_DB: lecture_booking
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # 可选：初始化附加参数（如开启数据页校验）
+      # POSTGRES_INITDB_ARGS: "--data-checksums"
+
+      # 用 secrets 读密码，不再明文写在 compose 里
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+
+    # 只绑定到本机回环且避开 5432 冲突；需要对外访问再去掉 127.0.0.1
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    # 健康检查，依赖方可用 depends_on+condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lecture_admin -d lecture_booking"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    volumes:
+      # 按官方建议把卷挂到 /var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+      # 初始化脚本只在空数据目录时执行；只读挂载更安全
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+
+    secrets:
+      - postgres_password
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - booking-network
+
+volumes:
+  postgres-data:
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+
+networks:
+  booking-network:
+    driver: bridge
