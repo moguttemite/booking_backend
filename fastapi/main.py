@@ -1,6 +1,6 @@
 """
 FastAPI 主应用入口
-预约系统后端 API
+講義予約システム バックエンド API
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +10,7 @@ from app.api.api_v1.api import api_router
 # 创建 FastAPI 应用实例
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="讲座预约系统后端 API",
+    description="講義予約システム バックエンド API",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )

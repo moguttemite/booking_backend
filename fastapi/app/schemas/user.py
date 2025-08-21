@@ -1,41 +1,60 @@
 """
-用户相关的 Pydantic 模型
+ユーザー関連の Pydantic モデル
 """
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
+import re
+import uuid
 
 
 class UserBase(BaseModel):
-    """用户基础模型"""
+    """ユーザー基礎モデル"""
     name: str
     email: EmailStr
     role: str = "student"
 
 
+def generate_random_username() -> str:
+    """ランダムなユーザー名を生成"""
+    return f"user_{uuid.uuid4().hex[:8]}"
+
+
 class UserCreate(BaseModel):
-    """用户创建模型"""
+    """ユーザー作成モデル"""
     """
-    用户注册时需要输入的参数
+    ユーザー登録時に必要なパラメータ
     """
     email: EmailStr
-    password1: str
-    password2: str
+    password: str
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('パスワードは8文字以上である必要があります')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('パスワードには大文字が含まれている必要があります')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('パスワードには小文字が含まれている必要があります')
+        if not re.search(r'\d', v):
+            raise ValueError('パスワードには数字が含まれている必要があります')
+        return v
 
 
-class UserOut(UserBase):
-    """用户输出模型（API 响应）"""
+class UserOut(BaseModel):
+    """ユーザー出力モデル（API レスポンス）"""
     id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    is_deleted: bool = False
+    name: str
+    email: str
+    role: str
 
     class Config:
         from_attributes = True
 
 
 class UserInDB(UserBase):
-    """数据库中的用户模型"""
+    """データベース内のユーザーモデル"""
     id: int
     hashed_password: str
     created_at: datetime
@@ -45,3 +64,37 @@ class UserInDB(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserRegisterResponse(BaseModel):
+    """ユーザー登録レスポンス"""
+    message: str = "ユーザー登録が完了しました"
+
+
+class UserLogin(BaseModel):
+    """ユーザーログインモデル"""
+    email: EmailStr
+    password: str
+
+
+class UserLoginResponse(BaseModel):
+    """ユーザーログインレスポンス"""
+    name: str
+    role: str
+    token: str
+
+
+class UserUpdate(BaseModel):
+    """ユーザー更新モデル"""
+    name: Optional[str] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if v is not None:
+            if not v or len(v.strip()) < 2:
+                raise ValueError('名前は2文字以上である必要があります')
+            if len(v) > 50:
+                raise ValueError('名前は50文字以下である必要があります')
+            return v.strip()
+        return v
