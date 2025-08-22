@@ -98,3 +98,23 @@ class UserUpdate(BaseModel):
                 raise ValueError('名前は50文字以下である必要があります')
             return v.strip()
         return v
+
+
+class UserRoleUpdate(BaseModel):
+    """ユーザー役割更新モデル（管理者のみ）"""
+    role: str
+    
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if v not in ['student', 'teacher', 'admin']:
+            raise ValueError('役割は student、teacher、admin のいずれかである必要があります')
+        return v
+
+
+class UserRoleUpdateResponse(BaseModel):
+    """ユーザー役割更新レスポンス"""
+    message: str = "ユーザー役割の更新が完了しました"
+    user_id: int
+    new_role: str
+    teacher_profile_created: Optional[bool] = None

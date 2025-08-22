@@ -89,7 +89,8 @@ def verify_token(token: str) -> Optional[TokenPayload]:
         token_payload.sub = payload.get("sub")
         token_payload.email = payload.get("email")
         token_payload.role = payload.get("role")
-        token_payload.exp = datetime.fromtimestamp(payload.get("exp"))
+        # 使用 UTC 时区创建时间对象，确保时区一致性
+        token_payload.exp = datetime.fromtimestamp(payload.get("exp"), tz=timezone.utc)
         
         return token_payload
         

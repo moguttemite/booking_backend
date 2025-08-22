@@ -15,8 +15,14 @@ async def test_endpoint():
 # 导入用户路由
 from .endpoints import users
 
+# 导入教师路由
+from .endpoints import teachers
+
 # 注册用户路由
 api_router.include_router(users.router, prefix="/users", tags=["users"])
+
+# 注册教师路由
+api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 
 # 这里将来会添加更多路由
 # from .endpoints import auth, lectures, bookings
