@@ -1,22 +1,23 @@
 """
 ユーザー関連 API エンドポイント
 """
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.schemas.user import UserCreate, UserRegisterResponse, UserLogin, UserLoginResponse, UserOut, generate_random_username
+import logging
+import traceback
+from sqlalchemy import func
+
+from app.schemas.user import (
+    UserCreate, UserRegisterResponse, UserLogin, UserLoginResponse, 
+    UserOut, generate_random_username, UserRoleUpdate, UserRoleUpdateResponse,
+    PasswordChange, PasswordChangeResponse, UserDeleteResponse
+)
 from app.utils.jwt import create_access_token, authenticate_user, get_current_user, get_current_admin
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.db.database import get_db
-import logging
-from sqlalchemy import func
 from app.models.teacher import TeacherProfile
-from app.schemas.user import UserRoleUpdate, UserRoleUpdateResponse
-
-# HTTP Bearer 認証スキーム
-security = HTTPBearer()
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -26,8 +27,7 @@ router = APIRouter()
 @router.post("/register", response_model=UserRegisterResponse)
 async def register_user(
     user_data: UserCreate, 
-    db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = None
+    db: Session = Depends(get_db)
 ):
     """ユーザー登録 API"""
     logger.info(f"ユーザー登録リクエスト: {user_data.email}")
@@ -62,10 +62,6 @@ async def register_user(
         
         logger.info(f"ユーザー {user_data.email} の登録が完了しました")
         
-        # バックグラウンドタスク（将来的にメール送信など）
-        if background_tasks:
-            background_tasks.add_task(send_welcome_email, user_data.email)
-        
         return UserRegisterResponse()
         
     except IntegrityError:
@@ -82,13 +78,6 @@ async def register_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="サーバーエラーが発生しました"
         )
-
-
-def send_welcome_email(email: str):
-    """ウェルカムメール送信（将来的な実装）"""
-    logger.info(f"ウェルカムメール送信: {email}")
-    # TODO: メール送信機能を実装
-    pass
 
 
 @router.post("/login", response_model=UserLoginResponse)
@@ -173,7 +162,6 @@ async def get_user_by_id(
     except Exception as e:
         logger.error(f"ユーザー情報取得エラー: {str(e)}")
         logger.error(f"エラーの詳細: {type(e).__name__}")
-        import traceback
         logger.error(f"スタックトレース: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -219,7 +207,6 @@ async def get_all_users(
     except Exception as e:
         logger.error(f"全ユーザー情報取得エラー: {str(e)}")
         logger.error(f"エラーの詳細: {type(e).__name__}")
-        import traceback
         logger.error(f"スタックトレース: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -321,7 +308,146 @@ async def update_user_role(
         db.rollback()
         logger.error(f"ユーザー役割更新エラー: {str(e)}")
         logger.error(f"エラーの詳細: {type(e).__name__}")
-        import traceback
+        logger.error(f"スタックトレース: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="サーバーエラーが発生しました"
+        )
+    
+
+@router.patch("/password", response_model=PasswordChangeResponse)
+async def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    パスワード変更API（本人のみ）
+    
+    Args:
+        password_data: パスワード変更情報
+        current_user: 現在のユーザー（本人のみ）
+        db: データベースセッション
+    
+    Returns:
+        PasswordChangeResponse: 変更結果
+    
+    Raises:
+        HTTPException: 現在のパスワードが正しくない、サーバーエラー時
+    """
+    logger.info(f"パスワード変更リクエスト by {current_user.email}")
+    
+    try:
+        # 現在のパスワードが正しいかチェック
+        if not verify_password(password_data.current_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="現在のパスワードが正しくありません"
+            )
+        
+        # 新しいパスワードが現在のパスワードと同じでないかチェック
+        if verify_password(password_data.new_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="新しいパスワードは現在のパスワードと異なる必要があります"
+            )
+        
+        # 新しいパスワードをハッシュ化して更新
+        new_hashed_password = get_password_hash(password_data.new_password)
+        current_user.hashed_password = new_hashed_password
+        current_user.updated_at = func.now()
+        
+        # データベースに保存
+        db.commit()
+        
+        logger.info(f"パスワード変更完了: ユーザー {current_user.email}")
+        
+        return PasswordChangeResponse()
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"パスワード変更エラー: {str(e)}")
+        logger.error(f"エラーの詳細: {type(e).__name__}")
+        logger.error(f"スタックトレース: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="サーバーエラーが発生しました"
+        )
+    
+
+@router.delete("/{user_id}", response_model=UserDeleteResponse)
+async def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    ユーザー削除API（管理者のみ）
+    
+    Args:
+        user_id: 削除対象のユーザーID
+        current_user: 現在のユーザー（管理者権限が必要）
+        db: データベースセッション
+    
+    Returns:
+        UserDeleteResponse: 削除結果
+    
+    Raises:
+        HTTPException: 権限不足、ユーザー不存在、自分自身を削除しようとした場合、サーバーエラー時
+    """
+    logger.info(f"ユーザー削除リクエスト: ユーザーID {user_id} by {current_user.email}")
+    
+    try:
+        # 対象ユーザーが存在するかチェック
+        target_user = db.query(User).filter(
+            User.id == user_id,
+            User.is_deleted == False
+        ).first()
+        
+        if not target_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="削除対象のユーザーが見つかりません"
+            )
+        
+        # 自分自身を削除しようとしている場合はエラー
+        if target_user.id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="自分自身を削除することはできません"
+            )
+        
+        # 他の管理者を削除しようとしている場合はエラー
+        if target_user.role == "admin":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="管理者ユーザーを削除することはできません"
+            )
+        
+        # ユーザーを削除済みにマーク（ソフトデリート）
+        target_user.is_deleted = True
+        target_user.deleted_at = func.now()
+        target_user.updated_at = func.now()
+        
+        # データベースに保存
+        db.commit()
+        
+        logger.info(f"ユーザー削除完了: ユーザーID {user_id} ({target_user.email})")
+        
+        return UserDeleteResponse(
+            deleted_user_email=target_user.email
+        )
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"ユーザー削除エラー: {str(e)}")
+        logger.error(f"エラーの詳細: {type(e).__name__}")
         logger.error(f"スタックトレース: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

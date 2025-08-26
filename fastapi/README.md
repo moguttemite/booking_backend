@@ -1,52 +1,52 @@
-# FastAPI 预约系统后端
+# FastAPI 講座予約システム バックエンド
 
-## 启动方式
+## 起動方法
 
-### 方式一：使用 uvicorn 直接启动（推荐）
+### 方法1：uvicorn で直接起動（推奨）
 ```bash
-# 开发环境（带自动重载）
+# 開発環境（自動リロード付き）
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# 生产环境
+# 本番環境
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### 方式二：使用开发脚本启动
+### 方法2：開発スクリプトで起動
 ```bash
 python start.py
 ```
 
-### 方式三：使用 uvicorn 配置文件
+### 方法3：uvicorn 設定ファイルを使用
 ```bash
 uvicorn main:app --config uvicorn.conf
 ```
 
-## 访问地址
+## アクセスURL
 
-- **API 文档**: http://localhost:8000/docs
-- **ReDoc 文档**: http://localhost:8000/redoc
-- **健康检查**: http://localhost:8000/health
-- **API 根路径**: http://localhost:8000/
+- **API ドキュメント**: http://localhost:8000/docs
+- **ReDoc ドキュメント**: http://localhost:8000/redoc
+- **ヘルスチェック**: http://localhost:8000/health
+- **API ルートパス**: http://localhost:8000/
 
-## 项目结构
+## プロジェクト構造
 
 ```
 fastapi/
-├── main.py              # FastAPI 应用入口
-├── start.py             # 开发启动脚本
-├── requirements.txt     # 依赖包
+├── main.py              # FastAPI アプリケーションエントリーポイント
+├── start.py             # 開発起動スクリプト
+├── requirements.txt     # 依存パッケージ
 └── app/
-    ├── api/             # API 路由
-    ├── core/            # 核心配置
-    ├── db/              # 数据库
-    ├── models/          # 数据模型
-    ├── schemas/         # Pydantic 模型
-    └── services/        # 业务逻辑
+    ├── api/             # API ルート
+    ├── core/            # コア設定
+    ├── db/              # データベース
+    ├── models/          # データモデル
+    ├── schemas/         # Pydantic モデル
+    └── services/        # ビジネスロジック
 ```
 
-## 为什么推荐使用 uvicorn 直接启动？
+## なぜ uvicorn で直接起動を推奨するのか？
 
-1. **更灵活**: 可以轻松配置端口、主机、重载等参数
-2. **生产标准**: 生产环境的标准做法
-3. **更好性能**: 更好的性能和配置选项
-4. **易于部署**: 便于容器化部署和进程管理
+1. **より柔軟**: ポート、ホスト、リロードなどのパラメータを簡単に設定可能
+2. **本番標準**: 本番環境での標準的な方法
+3. **より良いパフォーマンス**: より良いパフォーマンスと設定オプション
+4. **デプロイしやすい**: コンテナ化デプロイとプロセス管理が容易

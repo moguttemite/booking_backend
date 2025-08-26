@@ -1,5 +1,5 @@
 """
-用户 SQLAlchemy ORM 模型
+ユーザー SQLAlchemy ORM モデル
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.sql import func
@@ -8,7 +8,7 @@ from app.db.database import Base
 
 
 class User(Base):
-    """用户模型"""
+    """ユーザーモデル"""
     __tablename__ = "user_infos"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -21,5 +21,6 @@ class User(Base):
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
-    # 与TeacherProfile的关系
+    # リレーションシップ
     teacher_profile = relationship("TeacherProfile", back_populates="user", uselist=False)
+    bookings = relationship("LectureBooking", back_populates="user")
