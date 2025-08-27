@@ -16,8 +16,8 @@ class LectureCreate(LectureBase):
     """講座作成モデル"""
     lecture_title: str
     lecture_description: Optional[str] = None
-    teacher_id: Optional[int] = None  # 新增：指定讲座的主讲讲师ID
-    is_multi_teacher: bool = False  # 新增：是否为多讲师讲座
+    teacher_id: Optional[int] = None  # 講座の主讲讲师ID
+    is_multi_teacher: bool = False  # 多讲师講座フラグ
     
     @field_validator('lecture_title')
     @classmethod
@@ -44,19 +44,42 @@ class LectureCreate(LectureBase):
         return v
 
 
-class LectureUpdate(LectureBase):
-    """講座更新モデル"""
+class LectureUpdate(BaseModel):
+    """講座更新モデル（管理者のみ）"""
     lecture_title: Optional[str] = None
-    approval_status: Optional[str] = None
-    is_multi_teacher: Optional[bool] = None  # 新增：是否为多讲师讲座
+    lecture_description: Optional[str] = None
+    
+    @field_validator('lecture_title')
+    @classmethod
+    def validate_lecture_title(cls, v):
+        if v is not None:
+            if not v or len(v.strip()) < 3:
+                raise ValueError('講座タイトルは3文字以上である必要があります')
+            if len(v) > 200:
+                raise ValueError('講座タイトルは200文字以下である必要があります')
+            return v.strip()
+        return v
+    
+    @field_validator('lecture_description')
+    @classmethod
+    def validate_lecture_description(cls, v):
+        if v is not None:
+            if len(v) > 1000:
+                raise ValueError('講座説明は1000文字以下である必要があります')
+        return v
+
+
+class LectureUpdateResponse(BaseModel):
+    """講座更新レスポンス"""
+    message: str = "講座の更新が完了しました"
 
 
 class LectureOut(LectureBase):
     """講座出力モデル"""
     id: int
-    teacher_id: int  # 保持为必需字段，总是有主讲讲师
+    teacher_id: int  # 主讲讲师ID（必須）
     approval_status: str
-    is_multi_teacher: bool  # 新增：是否为多讲师讲座
+    is_multi_teacher: bool  # 多讲师講座フラグ
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -71,7 +94,7 @@ class LectureListOut(BaseModel):
     lecture_description: Optional[str] = None
     approval_status: str
     teacher_name: str
-    is_multi_teacher: bool  # 新增：是否为多讲师讲座
+    is_multi_teacher: bool  # 多讲师講座フラグ
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -91,71 +114,7 @@ class LectureDetailOut(LectureOut):
         from_attributes = True
 
 
-class LectureScheduleBase(BaseModel):
-    """講座スケジュール基礎モデル"""
-    booking_date: datetime
-    start_time: datetime
-    end_time: datetime
 
-
-class LectureScheduleCreate(LectureScheduleBase):
-    """講座スケジュール作成モデル"""
-    pass
-
-
-class LectureScheduleOut(LectureScheduleBase):
-    """講座スケジュール出力モデル"""
-    id: int
-    lecture_id: int
-    created_at: datetime
-    is_expired: bool
-
-    class Config:
-        from_attributes = True
-
-
-class LectureBookingBase(BaseModel):
-    """講座予約基礎モデル"""
-    booking_date: datetime
-    start_time: datetime
-    end_time: datetime
-
-
-class LectureBookingCreate(LectureBookingBase):
-    """講座予約作成モデル"""
-    pass
-
-
-class LectureBookingOut(LectureBookingBase):
-    """講座予約出力モデル"""
-    id: int
-    user_id: int
-    lecture_id: int
-    status: str
-    created_at: datetime
-    is_expired: bool
-
-    class Config:
-        from_attributes = True
-
-
-class CarouselBase(BaseModel):
-    """カルーセル基礎モデル"""
-    display_order: int
-    is_active: bool = True
-
-
-class CarouselCreate(CarouselBase):
-    """カルーセル作成モデル"""
-    lecture_id: int
-
-
-class CarouselOut(CarouselBase):
-    """カルーセル出力モデル"""
-    lecture_id: int
-
-    class Config:
-        from_attributes = True
 
 
 class LectureCreateResponse(BaseModel):
@@ -205,3 +164,66 @@ class MultiTeacherLectureResponse(BaseModel):
     message: str
     lecture_id: int
     affected_teacher_id: Optional[int] = None
+
+
+class LectureApprovalUpdate(BaseModel):
+    """講座審査状態更新モデル"""
+    approval_status: str
+    
+    @field_validator('approval_status')
+    @classmethod
+    def validate_approval_status(cls, v):
+        if v not in ['pending', 'approved', 'rejected']:
+            raise ValueError('審査状態は pending、approved、rejected のいずれかである必要があります')
+        return v
+
+
+class LectureApprovalUpdateResponse(BaseModel):
+    """講座審査状態更新レスポンス"""
+    message: str = "講座の審査状態の更新が完了しました"
+
+
+class LectureDeleteResponse(BaseModel):
+    """講座削除レスポンス"""
+    message: str = "講座の削除が完了しました"
+    title: str
+
+# カルーセル（トップページ掲載）関連スキーマ
+class CarouselBase(BaseModel):
+    """カルーセル基礎モデル"""
+    lecture_id: int
+    display_order: int
+    is_active: bool = True
+
+
+class CarouselOut(BaseModel):
+    """カルーセル出力モデル（フロントエンド表示用）"""
+    lecture_id: int
+    lecture_title: str
+    lecture_description: Optional[str] = None
+    teacher_name: str
+    display_order: int
+
+    class Config:
+        from_attributes = True
+
+
+class CarouselManagementOut(BaseModel):
+    """カルーセル管理用出力モデル（管理画面用）"""
+    lecture_id: int
+    lecture_title: str
+    display_order: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class CarouselBatchUpdate(BaseModel):
+    """カルーセル一括更新モデル"""
+    carousel_list: List[CarouselBase]
+
+
+class CarouselBatchUpdateResponse(BaseModel):
+    """カルーセル一括更新レスポンス"""
+    message: str = "カルーセルの一括更新が完了しました"

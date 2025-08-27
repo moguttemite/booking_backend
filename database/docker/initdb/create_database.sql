@@ -101,5 +101,8 @@ CREATE TABLE carousel (
   display_order INTEGER NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   
-  FOREIGN KEY (lecture_id) REFERENCES lectures(id) ON DELETE CASCADE
+  FOREIGN KEY (lecture_id) REFERENCES lectures(id) ON DELETE CASCADE,
+  UNIQUE (lecture_id),  -- 一つの講座は一度だけカルーセルに掲載可能
+  UNIQUE (display_order)  -- 表示順序は重複不可
 );
+

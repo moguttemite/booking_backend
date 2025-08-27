@@ -23,4 +23,5 @@ class User(Base):
 
     # リレーションシップ
     teacher_profile = relationship("TeacherProfile", back_populates="user", uselist=False)
-    bookings = relationship("LectureBooking", back_populates="user")
+    bookings = relationship("LectureBooking", back_populates="user", cascade="all, delete-orphan")
+    waitlist_entries = relationship("BookingWaitlist", back_populates="user", cascade="all, delete-orphan")
