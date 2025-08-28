@@ -1,7 +1,7 @@
 """
 講座予約 SQLAlchemy ORM モデル
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Date, Time
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -51,6 +51,27 @@ class LectureBooking(Base):
     # リレーションシップ
     user = relationship("User", back_populates="bookings")
     schedule = relationship("LectureSchedule", back_populates="bookings")
+
+
+# ==================== 数据库结构匹配的模型 ====================
+
+class LectureBookingDB(Base):
+    """数据库结构匹配的講座予約モデル（用于多表联查）"""
+    __tablename__ = "lecture_bookings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user_infos.id"), nullable=False)
+    lecture_id = Column(Integer, ForeignKey("lectures.id"), nullable=False)  # 直接关联讲座ID
+    status = Column(String(20), nullable=False, default="pending")  # ステータス: pending, confirmed, cancelled
+    booking_date = Column(Date, nullable=False)  # 予約日期
+    start_time = Column(Time, nullable=False)  # 开始时间
+    end_time = Column(Time, nullable=False)  # 结束时间
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    is_expired = Column(Boolean, default=False)
+
+    # リレーションシップ
+    user = relationship("User")
+    lecture = relationship("Lecture")
 
 
 class BookingWaitlist(Base):
