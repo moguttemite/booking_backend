@@ -42,6 +42,48 @@ class ScheduleCreate(BaseModel):
             raise ValueError('時間は HH:MM 形式である必要があります')
 
 
+class ScheduleBatchCreate(BaseModel):
+    """講座スケジュール一括作成モデル（予約可能時間一括登録）"""
+    lecture_id: int
+    teacher_id: int
+    dates: List[str]  # 日期列表，格式: ["YYYY-MM-DD", "YYYY-MM-DD", ...]
+    start: str  # 格式: "HH:MM"
+    end: str    # 格式: "HH:MM"
+    
+    @field_validator('lecture_id', 'teacher_id')
+    @classmethod
+    def validate_ids(cls, v):
+        if v <= 0:
+            raise ValueError('IDは正の整数である必要があります')
+        return v
+    
+    @field_validator('dates')
+    @classmethod
+    def validate_dates(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError('日付リストは空にできません')
+        if len(v) > 100:  # 限制一次最多创建100个日期
+            raise ValueError('一度に登録できる日付は100件までです')
+        
+        # 验证每个日期的格式
+        for date_str in v:
+            try:
+                datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f'日付の形式が正しくありません: {date_str}')
+        
+        return v
+    
+    @field_validator('start', 'end')
+    @classmethod
+    def validate_time(cls, v):
+        try:
+            datetime.strptime(v, "%H:%M")
+            return v
+        except ValueError:
+            raise ValueError('時間は HH:MM 形式である必要があります')
+
+
 class ScheduleCreateResponse(BaseModel):
     """講座スケジュール作成レスポンス"""
     message: str = "予約可能時間の登録が完了しました"
@@ -199,3 +241,9 @@ class WaitlistCreateResponse(BaseModel):
     """待機リスト登録レスポンス"""
     message: str = "待機リストへの登録が完了しました"
     waitlist_id: int
+
+
+class ScheduleBatchCreateResponse(BaseModel):
+    """講座スケジュール一括作成レスポンス"""
+    message: str
+    created_count: int
